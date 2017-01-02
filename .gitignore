@@ -16,10 +16,12 @@ software/i2c_nunchuck
 software/libusb/
 software/lwbuttond
 software/onewire
+software/quadPWM
 software/rgb_cycle_ws2812
 software/servo
 software/softPWM
 software/spi_LTC1448
+software/write
 
 firmware/main.hex
 firmware/main.elf

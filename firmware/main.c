@@ -834,6 +834,79 @@ uchar	usbFunctionSetup(uchar data[8])
 		return 0;
 	}
 
+// We want to read at 280us into our 320us LED pulse
+// HOWEVER: ADC read is not instantaneous
+// The average ADC read takes 13 cycles
+// With our system clock of 16.5MHz, we can set the prescaler
+// to 64 - leaving us with an ADC clock of ~258kHz.
+// 13 cycles @ ~258kHz = ~50us
+// If we assume that we should sample equally on either
+// side of our ideal timing, we should start ADC
+// capture 255us after starting the LED pulse.
+// After starting the pulse, we can simply sleep for 65us
+// before checking if our conversion is complete.
+
+	if( req == 57) /* sharp read */
+	{
+    pinMode(B, DATA_PIN, OUTPUT); // Pin 2 = LED
+
+    // Pin 5 = RST = ADC0
+		sbi(ADCSRA,ADEN); // Enable the ADC peripheral
+		ADCSRA |= 0x06; // 0b110
+
+    adcSetting = 0; // Use VCC as Vref.
+    ADMUX = adcSetting | 0; // Set the desired channel (ADC0)
+
+    sbi(DIDR0,ADC0D); // Disable digital buffer ...
+
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+      digitalWrite(B, DATA_PIN, HIGH);
+      _delay_us(255);
+      sbi(ADCSRA,ADSC); // Start conversion
+      _delay_us(65);
+      while(checkBit(ADCSRA,ADSC)); // Check for conversion	(should be done)
+      digitalWrite(B, DATA_PIN, LOW);
+    }
+
+    data[0]=(unsigned char)ADCL;
+    data[1]=(unsigned char)ADCH;
+		usbMsgPtr = data;
+    DIDR0=0x00; // ?
+    return 2;
+  }
+	if (req == 58) /* init quadPWM */
+	{
+		if(data[2]==1)
+		{
+			pinMode(B,0,OUTPUT);
+			pinMode(B,1,OUTPUT);
+
+			pinMode(B,2,OUTPUT);
+			pinMode(B,5,OUTPUT);
+
+      TCCR0A |= (1<<COM0A1)|(1<<COM0A0)|(1<<COM0B1)|(1<<COM0B0); // Clear OC0A/OC0B on Compare Match, set OC0A/OC0B at BOTTOM (inverting mode)
+      TCCR0A |= (1<<WGM01)|(1<<WGM00); // Fast PWM mode
+      TCCR0B |= (1<<CS02)|(0<<CS01)|(1<<CS00); // Timer prescale: 1024 => PWM signal update frequency: ( 16.500.000 / ( 255 * 1024) ) = ~ 63 Hertz
+
+      TCCR1 = (1<<COM1A0) | (1<<COM1A1); // Set OC1A / OC1B on compare match
+      TCCR1 |= (1<<CS13) | (1<<CS11) | (1<<CS10); // 1024 prescaler
+
+      // Interrupts on OC1A/OC1B match and overflow
+      TIMSK = TIMSK | 1<<OCIE1A | 1<<OCIE1B | 1<<TOIE1;
+		}
+		return 0;
+	}
+	if( req == 59) /* update quadPWM */
+	{
+    
+		OCR0A=255-data[2];
+		OCR0B=255-data[3];
+
+		OCR1A=data[4];
+		OCR1B=data[5];
+
+		return 0;		
+	}
 #if 0 
 	if ((req & 0xF0) == 0xD0) /* pic24f send bytes */
 	{
@@ -874,6 +947,31 @@ uchar	usbFunctionSetup(uchar data[8])
 		return 0;
 	}
 	return 0;
+}
+
+/* ------------------------------------------------------------------------- */
+/* -------------------- Interrupt Routines for Quad PWM -------------------- */
+/* ------------------------------------------------------------------------- */
+
+ISR(TIM1_OVF_vect) { // Start of cycle
+  if (OCR1A != 0) {
+    digitalWrite(B, 2, HIGH);
+  }
+  if (OCR1B != 0) {
+    digitalWrite(B, 5, HIGH);
+  }
+}
+
+ISR(TIM1_COMPA_vect) {
+  if (OCR1A != 255) {
+    digitalWrite(B, 2, LOW);
+  }
+}
+
+ISR(TIM1_COMPB_vect) {
+  if (OCR1B != 255) {
+    digitalWrite(B, 5, LOW);
+  }
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1177,6 +1275,7 @@ uint8_t DHT_Read(unsigned char type) {
     }
     return 0;
 }
+
 // ----------------------------------------------------------------------------
 
 
@@ -1201,8 +1300,8 @@ int main(void) {
     initSerialNumber();
     
     usbDeviceDisconnect();
-    for(i=0;i<20;i++){  /* 300 ms disconnect */
-        _delay_ms(15);
+    for(i=0;i<200;i++){  /* 30 s disconnect */
+        _delay_ms(150);
     }
     usbDeviceConnect();
 

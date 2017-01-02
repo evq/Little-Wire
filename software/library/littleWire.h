@@ -517,7 +517,25 @@ void softPWM_state(littleWire* lwHandle,unsigned char state);
   */
 void softPWM_write(littleWire* lwHandle,unsigned char ch1,unsigned char ch2,unsigned char ch3);
 
-/*! @} */
+/**
+  * Sets the state of the softPWM module
+  * 
+  * @param lwHandle littleWire device pointer
+  * @param state State of the softPWM module ( \b ENABLE or \b DISABLE )
+  * @return (none)
+  */
+void quadPWM_state(littleWire* lwHandle,unsigned char state);
+
+/**
+  * Updates the values of softPWM modules
+  *
+  * @param lwHandle littleWire device pointer
+  * @param ch1 Value of channel 1 - \b PIN4
+  * @param ch2 Value of channel 2 - \b PIN1
+  * @param ch3 Value of channel 3 - \b PIN2
+  * @return (none)
+  */
+void quadPWM_write(littleWire* lwHandle,unsigned char ch1,unsigned char ch2,unsigned char ch3,unsigned char ch4);
 
 /*! @} */ 
 
@@ -568,6 +586,7 @@ void ws2812_preload(littleWire* lwHandle, unsigned char r,unsigned char g,unsign
   /*! @} */
   
 dht_reading dht_read(littleWire* lwHandle, unsigned char type);
+unsigned int sharp_read(littleWire* lwHandle);
 
 /**
 * @mainpage Introduction

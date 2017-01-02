@@ -375,6 +375,16 @@ void softPWM_write(littleWire* lwHandle,unsigned char ch1,unsigned char ch2,unsi
 	lwStatus=usb_control_msg(lwHandle, 0xC0, 48, (ch2<<8) | ch1, ch3, rxBuffer, 8, USB_TIMEOUT);
 }
 
+void quadPWM_state(littleWire* lwHandle,unsigned char state)
+{
+	lwStatus=usb_control_msg(lwHandle, 0xC0, 58, state, 0, rxBuffer, 8, USB_TIMEOUT);
+}
+
+void quadPWM_write(littleWire* lwHandle,unsigned char ch1,unsigned char ch2,unsigned char ch3,unsigned char ch4)
+{
+	lwStatus=usb_control_msg(lwHandle, 0xC0, 59, (ch2<<8) | ch1, (ch4<<8) | ch3, rxBuffer, 8, USB_TIMEOUT);
+}
+
 void ws2812_write(littleWire* lwHandle, unsigned char pin, unsigned char r,unsigned char g,unsigned char b)
 {
 	lwStatus=usb_control_msg(lwHandle, 0xC0, 54, (g<<8) | pin | 0x30, (b<<8) | r, rxBuffer, 8, USB_TIMEOUT);
@@ -400,6 +410,14 @@ dht_reading dht_read(littleWire* lwHandle, unsigned char type)
 
   return *(dht_reading*) (void*) rxBuffer;
 }
+
+unsigned int sharp_read(littleWire* lwHandle)
+{
+	lwStatus=usb_control_msg(lwHandle, 0xC0, 57, 0, 0, rxBuffer, 8, USB_TIMEOUT);	
+
+	return ((rxBuffer[1] * 256) + (rxBuffer[0]));
+}
+
 
 
 int customMessage(littleWire* lwHandle,unsigned char* receiveBuffer,unsigned char command,unsigned char d1,unsigned char d2, unsigned char d3, unsigned char d4)
